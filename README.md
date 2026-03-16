@@ -10,11 +10,11 @@ Part A: Python and Mathematica scripts used for calculations and numerical solut
 
 Part B: SLiM scripts + bash scripts used for simulations-
 - script9_exp_3.slim - this script runs single-species simulations over fixed time scales, for a determined range of mutation supply parameters (takes as input single_params_3.csv and mutation_kernel_extra.csv). compiled outputs from this file generate log_combined_single3.csv (data for figure 3)
-- run_reps_sing3.sh and combine_file_sing.sh - bash scripts for running the previous SLiM script
+- run_reps_sing3.sh and combine_files_sing.sh - bash scripts for running the previous SLiM script
 - script10_exp_2.slim - this script runs two-species simulations over fixed time scales, for a determined range of mutation supply parameters (takes as input paired_params_2.csv and mutation_kernel_extra.csv). compiled outputs from this file generate log_combined_pair2new.csv (data for Figure 4)
 - script10_3.slim - this script runs two-species simulations over a larger set of initial parameters, for a single set of mutation supply parameters (takes as input pairparams_new.csv and pairparams_mk_new.csv). compiled outputs from this file generate log_comb_init_00.csv (data for Figure 5)
 - script10_2_expanded.slim - this script runs two-species simulations that terminate for predetermined end conditions, mutation rates sampled from distribution (takes as input paired_params_2.csv). compiled outputs from this file generate log_comb_exp_15_ext2.csv and log_comb_exp_16_ext2.csv (data for Figure 6)
-- run_reps_pair_2.sh, run_reps_pair_expanded.sh and combine_file_sing.sh - bash scripts for running the previous SLiM scripts
+- run_reps_pair_2.sh, run_reps_pair_expanded.sh and combine_files_pair.sh - bash scripts for running the previous SLiM scripts
 
 Part C: R scripts used for analysis- 
 The script AD_all_analysis.R contains all the R scripts used for statistical analysis and making figures. Some of the file locations need to be changed for the script to work correctly. 
