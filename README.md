@@ -12,6 +12,7 @@ Part B: SLiM scripts + bash scripts used for simulations-
 - script9_exp_3.slim - this script runs single-species simulations over fixed time scales, for a determined range of mutation supply parameters (takes as input single_params_3.csv and mutation_kernel_extra.csv). compiled outputs from this file generate log_combined_single3.csv (data for figure 3)
 - run_reps_sing3.sh and combine_files_sing.sh - bash scripts for running the previous SLiM script
 - script10_exp_2.slim - this script runs two-species simulations over fixed time scales, for a determined range of mutation supply parameters (takes as input paired_params_2.csv and mutation_kernel_extra.csv). compiled outputs from this file generate log_combined_pair2new.csv (data for Figure 4)
+- script10_exp_2_extinct.slim - this script runs two-species simulations over fixed time scales, for a determined range of mutation supply parameters (takes as input paired_params_2.csv and mutation_kernel_extra.csv). compiled outputs from this file generate log_combined_extinct.csv (data for Figure 4, rerunning some of the simulations)
 - script10_3.slim - this script runs two-species simulations over a larger set of initial parameters, for a single set of mutation supply parameters (takes as input pairparams_new.csv and pairparams_mk_new.csv). compiled outputs from this file generate log_comb_init_00.csv (data for Figure 5)
 - script10_2_expanded.slim - this script runs two-species simulations that terminate for predetermined end conditions, mutation rates sampled from distribution (takes as input paired_params_2.csv). compiled outputs from this file generate log_comb_exp_15_ext2.csv and log_comb_exp_16_ext2.csv (data for Figure 6)
 - run_reps_pair_2.sh, run_reps_pair_expanded.sh and combine_files_pair.sh - bash scripts for running the previous SLiM scripts
@@ -34,6 +35,7 @@ Simulation data (only including data files for main figures):
  - fixed_combined_single3.csv - information about fixed mutations for simulations in previous file
  - log_combined_pair2new.csv - simulation outputs for first set of two-species simulations (population size and mean values of ri and aii)
  - log_combined_extinct.csv - simulation outputs for some parameter combinations not covered in this previous file
+ - time_extinct_fig4.csv - processed data from previous two files (used to generate Figure 4)
  - fixed_combined_pair2new.csv - information about fixed mutations for simulations in previous file
  - log_comb_exp_15_ext2.csv and log_comb_exp_16_ext2.csv - simulation outputs for extended two-species simulations (for figure 6, population size and mean values of ri and aii)
  - log_comb_init_00.csv - simulation outputs for extended two-species simulations (for figure 5, population size and mean values of ri and aii)
