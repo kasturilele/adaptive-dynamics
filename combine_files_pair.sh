@@ -40,6 +40,13 @@ for rep in {0..5}; do
     done;
 done;
 mks=(18 43 68 17 42 67 16 41 66 23 48 73 22 47 72 21 46 71)
+
+for mes in {1..100}; do
+    for mk in ${!mks[@]};do
+    cat ../outputs_tradeoffs/outputs_12_02/logfiles/10_output_1_${mes}_${mks[$mk]}.csv | awk -v rep=1 -v mes="$mes" -v mk=${mks[$mk]} '{if (NR > 1) print mk, ",", rep,",", mes,",", $0}' >> ../outputs_tradeoffs/log_combined_extinct.csv;
+
+    done;
+done;
 mks=(64 10 17 37 44)
 mks=(64 10 17 37 44 14)
 mks=(65 70 80 85)
