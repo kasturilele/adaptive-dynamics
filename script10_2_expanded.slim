@@ -1,0 +1,421 @@
+// change from 7: tradeoffs are now strict, defined by fixed tradeoff function
+// further change: mutations accumulate in both r and alpha, but now mutation effect bounded by tradeoff function
+// change from 8: separate beneficial and deleterious mutations into two different mutation types, make deleterious mutations much more likely for r and alpha
+//change from 10: save mutations for both species
+
+//change from 10.1: not save lost mutations, no population output at intermediate timepoints, simulation ends when either one species goes extinct or both species come within 0.5 of the ESS
+
+function (integer)sgn(float x)
+{
+	if (x > 0) return 1;
+	if (x < 0) return -1;
+	return 0;
+}
+function (float)avg(float x)
+{
+	return sum(x)/length(x);
+}
+function (float)td1(float b)
+{
+	return -0.0000206 * exp(3.2*b); //exponential tradeoff  
+
+}
+function (float)td2(float b)
+{
+	return -0.0000108 * exp(3.5*b); //exponential tradeoff 
+
+}
+
+function (float)minim(float x, float px, float y, float py)
+{
+	return sqrt((x - px)*(x - px)/0.01 + (y - py)*(y - py)/1e-10);
+}
+
+species all initialize() {
+	//code that reads params from file
+	params = readCSV("../params/paired_params_2.csv");
+	mutkern = readCSV("../params/mutation_kernel_expanded.csv"); //mutation kernel
+	if (exists("slimgui"))
+	{
+		defineConstant("rep", 1);
+		defineConstant("mes", 4);
+		defineConstant("mk_a", 15);
+	    defineConstant("mk_b", 15);
+		
+	}
+	defineConstant("filepath", "/cluster/tufts/uricchiolab/klele01/slimcode/outputs_tradeoffs/outputs_12_18/"); //file path for outputs
+
+	//toy parameters
+	defineConstant("N0_1",params.getValue("N10")[1]); //initial pop size
+	defineConstant("N0_2",params.getValue("N20")[1]); //initial pop size
+	defineConstant("r1",params.getValue("r1")[1]); //growth rate
+	defineConstant("r2",params.getValue("r2")[1]); //growth rate
+	defineConstant("a11",params.getValue("a11")[1]);; //interaction coefficient
+	defineConstant("a22",params.getValue("a22")[1]);; //interaction coefficient
+	defineConstant("a12", params.getValue("a12")[1]);; //interaction coefficient
+	defineConstant("a21", params.getValue("a21")[1]);; //interaction coefficient
+	
+	//read proportion of beneficial vs deleterious mutations
+	defineConstant("mk1",mutkern.getValue("m1")[mk_a]); //for s1
+	defineConstant("mk2",mutkern.getValue("m2")[mk_a]); //for s1
+	defineConstant("mk3",mutkern.getValue("m3")[mk_a]); //for s1
+	defineConstant("mk4",mutkern.getValue("m4")[mk_a]); //for s1
+	
+	defineConstant("mk5",mutkern.getValue("m1")[mk_b]); //for s2
+	defineConstant("mk6",mutkern.getValue("m2")[mk_b]); //for s2
+	defineConstant("mk7",mutkern.getValue("m3")[mk_b]); //for s2
+	defineConstant("mk8",mutkern.getValue("m4")[mk_b]); //for s2
+	
+	//mutation rate determined by drawing from a uniform distribution between 10^-6 and 10^-7	
+	defineConstant("mut_1", runif(1, 1e-7, 1e-6)); //mutation rate for species 1
+	defineConstant("mut_2", runif(1, 1e-7, 1e-6)); //mutation rate for species 2
+	
+	//defining mutation effect multipliers here - species 1
+	defineConstant("mutr_1", mutkern.getValue("mutr")[mk_a]);
+	defineConstant("muta_1", mutkern.getValue("muta")[mk_a]);
+	
+	//defining mutation effect multipliers here - species 2
+	defineConstant("mutr_2", mutkern.getValue("mutr")[mk_b]);
+	defineConstant("muta_2", mutkern.getValue("muta")[mk_b]);
+	
+	//use value of mutation kernal from file to write in file name
+	defineConstant("mk_fw1", mutkern.getValue("mutation_kernel")[mk_a]);
+	defineConstant("mk_fw2", mutkern.getValue("mutation_kernel")[mk_b]);
+	
+	//define Global variable to store mean r2 and a22 values
+	defineGlobal("r1_store",r1);
+	defineGlobal("a11_store",a11);
+	defineGlobal("r2_store",r2);
+	defineGlobal("a22_store",a22);
+	
+	//define ESS values of r1, r2, a11, a22
+	defineConstant("r1e", 0.498344);
+	defineConstant("r2e", 0.362690);
+	defineConstant("a11e", -0.0001015);
+	defineConstant("a22e", -0.0000384);
+	
+	defineConstant("dt", 1);
+	defineConstant("lt", 100); //log time - so that same ticks get printed on screen and in the log file
+	defineGlobal("endTick", 1000002); //variable that keeps track of whether simulation needs to end, set it to value of end tick
+	
+	initializeSLiMModelType("nonWF");
+	
+	defineConstant("S1", "S1"); //get strain names to store in file
+	defineConstant("S2", "S2");
+}
+species species1 initialize() {
+	initializeSpecies(avatar="1", color="cornflowerblue");
+	//separating beneficial and deleterious mutations
+	//for r, beneficial mutations increase r
+	//for alpha, beneficial mutations increase alpha numerically (make it less negative)
+	//deleterious mutations:
+	initializeMutationType("m5", 0.5, "g", -1, 0.5); // QTLs for r; 
+	initializeMutationType("m6", 0.5, "g", -1, 0.5); // QTLs for a; 
+	//beneficial mutations:
+	initializeMutationType("m7", 0.5, "g", 1, 0.5); // QTLs for r; 
+	initializeMutationType("m8", 0.5, "g", 1, 0.5); // QTLs for a; 
+	m5.convertToSubstitution = F;
+	m5.mutationStackPolicy = 'l';
+	m5.color = "#FF4D2D";
+	m6.convertToSubstitution = F;
+	m6.mutationStackPolicy = 'l';
+	m6.color = "#B15555";
+	m7.convertToSubstitution = F;
+	m7.mutationStackPolicy = 'l';
+	m7.color = "#41FDD6";
+	m8.convertToSubstitution = F;
+	m8.mutationStackPolicy = 'l';
+	m8.color = "#01AB8E";
+	initializeGenomicElementType("g1", c(m5,m6,m7,m8), c(mk5,mk6,mk7,mk8));
+	initializeGenomicElement(g1, 0, 999);
+	initializeRecombinationRate(0.5);
+	initializeMutationRate(mut_1);
+}
+
+species species2 initialize() {
+	initializeSpecies(avatar="2", color="red");
+	//separating beneficial and deleterious mutations
+	//for r, beneficial mutations increase r
+	//for alpha, beneficial mutations increase alpha numerically (make it less negative)
+	//deleterious mutations:
+	initializeMutationType("m1", 0.5, "g", -1, 0.5); // QTLs for r; 
+	initializeMutationType("m2", 0.5, "g", -1, 0.5); // QTLs for a; 
+	//beneficial mutations:
+	initializeMutationType("m3", 0.5, "g", 1, 0.5); // QTLs for r; 
+	initializeMutationType("m4", 0.5, "g", 1, 0.5); // QTLs for a; 
+	m1.convertToSubstitution = F;
+	m1.convertToSubstitution = F;
+	m1.mutationStackPolicy = 'l';
+	m1.color = "#FF4D2D";
+	m2.convertToSubstitution = F;
+	m2.mutationStackPolicy = 'l';
+	m2.color = "#B15555";
+	m3.convertToSubstitution = F;
+	m3.mutationStackPolicy = 'l';
+	m3.color = "#41FDD6";
+	m4.convertToSubstitution = F;
+	m4.mutationStackPolicy = 'l';
+	m4.color = "#01AB8E";
+	initializeGenomicElementType("g2", c(m1,m2,m3,m4), c(mk1,mk2,mk3,mk4));
+	initializeGenomicElement(g2, 0, 999);
+	initializeRecombinationRate(0.5);
+	initializeMutationRate(mut_2);
+}
+
+//all mutationEffects are 1 since they are QTs
+species species2 mutationEffect(m1){
+	return 1.0;
+}
+species species2 mutationEffect(m2){
+	return 1.0;
+}
+species species2 mutationEffect(m3){
+	return 1.0;
+}
+species species2 mutationEffect(m4){
+	return 1.0;
+}
+species species1 mutationEffect(m5){
+	return 1.0;
+}
+species species1 mutationEffect(m6){
+	return 1.0;
+}
+species species1 mutationEffect(m7){
+	return 1.0;
+}
+species species1 mutationEffect(m8){
+	return 1.0;
+}
+
+species species1 reproduction() {
+	litterSize1 = individual.tag;
+	if (litterSize1 > 0)
+	{
+		//changing reproduction to add selfing
+		for (i in seqLen(litterSize1))
+			subpop.addRecombinant(individual.genome1, NULL, NULL, NULL, NULL, NULL);
+	}
+}
+
+species species2 reproduction() {
+	litterSize2 = individual.tag;
+	if (litterSize2 > 0)
+	{
+		//changing reproduction to add selfing
+		for (i in seqLen(litterSize2))
+			subpop.addRecombinant(individual.genome1, NULL, NULL, NULL, NULL, NULL);
+	}
+}
+
+// ************************************************ 
+// ******************** EARLY ********************* 
+// ************************************************
+
+ticks all 1 early() {
+	species1.addSubpop("p1", asInteger(N0_1), haploid = T);
+	species2.addSubpop("p2", asInteger(N0_2), haploid = T);
+	
+	//define global variables for storing mutations, will be empty at this point
+	defineGlobal("MUTS1", species1.mutations);
+	defineGlobal("MUTS1_fixed", species1.mutations[which(species1.mutationFrequencies(p1) == 1.0)]);
+	defineGlobal("MUTS2", species2.mutations);
+	defineGlobal("MUTS2_fixed", species2.mutations[which(species2.mutationFrequencies(p2) == 1.0)]);
+	
+	//delete old file for logging mutation data (if it exists)
+	//deleteFile(filepath + "/mutdata/10_lost_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv");
+	//deleteFile(filepath + "/mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv");
+	
+	//create new file for logging mutation data
+	//writeFile(filepath + "/mutdata/10_lost_"+rep+"_"+mes+"_"+mk_fw+".csv", paste("rep"+","+"mes"+","+"mk"+","+"species"+","+"time_loss"+ ","+"effect_size"+","+"mutation_type"+","+"blank"+","+"blank"));
+	writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", paste("rep"+","+"mes"+","+"mk1"+","+"mk2"+","+"species"+","+"time_origin"+","+"time_fixed"+ ","+"effect_size"+","+"mutation_type"+","+"blank"+","+"blank"));
+	
+	//write mutation parameter data in new file
+    writeFile(filepath + "muts_"+mk_a+"/mutation_params_"+mes+".csv", paste(rep+","+mes+","+mk1+","+mk2+","+mk3+","+mk4+","+mutr_1+","+muta_1+","+mut_1+","+mut_2), append = T);
+}
+
+// ************************************************ 
+// ******************** FIRST ********************* 
+// ************************************************
+
+ticks all first() {
+	sp1 = species1.subpopulations.individuals;      // species 1 
+	sp2 = species2.subpopulations.individuals;      // species 2 
+	
+	// non-overlapping generations: parents die, offspring live
+	sp1_age = sp1.age;
+	sp1[sp1_age > 0].fitnessScaling = 0.0;
+	
+	sp2_age = sp2.age;
+	sp2[sp2_age > 0].fitnessScaling = 0.0;
+	
+	// get numbers of each species
+	x1 = sp1.size();
+	x2 = sp2.size();
+	
+	//r1 and r2 are birth rates, decide how many offspring generated
+	//use tag to specify number of offspring
+	sp1.tag = 0;
+	sp2.tag = 0;
+	//phenotype affects how many offspring you can have
+	sp1_phenr = (sp1.sumOfMutationsOfType(m5)*mutr_1) + (sp1.sumOfMutationsOfType(m7)*mutr_1); //add effect of beneficial and deleterious mutations both
+	sp2_phenr = (sp2.sumOfMutationsOfType(m1)*mutr_2) + (sp2.sumOfMutationsOfType(m3)*mutr_2);
+	r1_new = r1 + sp1_phenr;
+	r2_new = r2 + sp2_phenr;
+	
+	//sum of QTLs affects interaction coefficients
+	phena11 = (sp1.sumOfMutationsOfType(m6)*muta_1) + (sp1.sumOfMutationsOfType(m8)*muta_1);
+	phena22 = (sp2.sumOfMutationsOfType(m2)*muta_2) + (sp2.sumOfMutationsOfType(m4)*muta_2);
+	
+	//tradeoffs set caps on a11 and a12
+	a11_cap = td1(r1_new);
+	a22_cap = td2(r2_new);
+	
+	//new coefficients are old coefficient + sum of QTLs
+	a11_new = pmin(a11 + phena11, a11_cap);
+	a22_new = pmin(a22 + phena22, a22_cap);
+	
+	r1_mean = sum(r1_new)/x1;
+	a11_mean = sum(a11_new)/x1;
+	//catn(r1_mean +","+ a11_mean);
+	r2_mean = sum(r2_new)/x2;
+	a22_mean = sum(a22_new)/x2;
+	//catn(r2_mean +","+ a22_mean);
+	
+	lambda1 = (1 + r1_new + a11_new*x1 + a12*x2);
+	lambda2 = (1 + r2_new + a22_new*x2 + a21*x1);
+	
+	//add offspring according to poisson variable, if lambda > 0
+	kids1 = sp1.tag; //set kids to 0
+	kids2 = sp2.tag;
+	
+	valid1 = which(lambda1 > 0); //check for lambda > 0
+	valid2 = which(lambda2 > 0);
+	
+	//only evaluate rpois for indices where lambda > 0 
+	kids1[valid1] = rpois(length(lambda1[valid1]), lambda1[valid1]);
+	sp1.tag = kids1;
+	
+	kids2[valid2] = rpois(length(lambda2[valid2]), lambda2[valid2]);
+	sp2.tag = kids2;
+	
+	//update global variable to store r2 and a22
+	defineGlobal("r1_store",r1_mean);
+	defineGlobal("a11_store",a11_mean);
+	defineGlobal("r2_store",r2_mean);
+	defineGlobal("a22_store",a22_mean);
+	
+	// determine if minimum distance for population mean is close enough to ESS
+	
+	dist_1 = minim(r1_mean, r1e, a11_mean, a11e);
+	dist_2 = minim(r2_mean, r2e, a22_mean, a22e);
+	
+	if(dist_1 < 0.5 & dist_2 < 0.5){
+		if (community.tick < endTick - 1000){
+			defineGlobal("endTick", community.tick + 1000);
+		}
+	}
+
+}
+
+// ************************************************ 
+// ******************** LATE ********************* 
+// ************************************************
+
+ticks all 2 late(){
+	//setting up a log file
+	logfile = community.createLogFile(filepath + "logfiles/10_output_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", logInterval=lt);
+	logfile.addTick();
+	logfile.addCustomColumn("Strain_1", "S1;");
+	logfile.addCustomColumn("Strain_2", "S2;");
+	logfile.addPopulationSize(species1);
+	logfile.addPopulationSize(species2);
+	logfile.addCustomColumn("r1", "r1_store;");
+	logfile.addCustomColumn("a11", "a11_store;");
+	logfile.addCustomColumn("r2", "r2_store;");
+	logfile.addCustomColumn("a22", "a22_store;");
+
+}
+ticks all late() {
+	
+	//check if any species has gone extinct
+	sp1 = species1.subpopulations.individuals;      // species 1 
+	sp2 = species2.subpopulations.individuals;      // species 2 
+	
+	// get numbers of each species
+	x1 = sp1.size();
+	x2 = sp2.size();
+	
+	if (x1 > 50000 | x2 > 50000){
+		//finish simulation
+		community.simulationFinished();
+		
+		//do the output that happens at the end of the simulation
+		time_fixation_1 = MUTS1_fixed.subpopID - MUTS1_fixed.originTick;
+		time_fixation_2 = MUTS2_fixed.subpopID - MUTS2_fixed.originTick;
+		fixeddata = paste(rep+","+mes+","+mk_a+","+mk_b+","+"1"+","+ MUTS1_fixed.originTick + ","+time_fixation_1 + "," + MUTS1_fixed.selectionCoeff + ","+ MUTS1_fixed.mutationType.id + ","+"\n");
+		writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", fixeddata, append = T);
+		fixeddata = paste(rep+","+mes+","+mk_a+","+mk_b+","+"2"+","+MUTS2_fixed.originTick + ","+time_fixation_2 + "," + MUTS2_fixed.selectionCoeff + ","+ MUTS2_fixed.mutationType.id + ","+"\n");
+		writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", fixeddata, append = T);
+	}
+	
+	if (x1 < 1 | x2 < 1){
+		if (community.tick < endTick - 1000){
+			defineGlobal("endTick", community.tick + 1000);
+		}
+	}
+	
+	if (community.tick > endTick){
+		//finish simulation
+		community.simulationFinished();
+		
+		//do the output that happens at the end of the simulation
+		time_fixation_1 = MUTS1_fixed.subpopID - MUTS1_fixed.originTick;
+		time_fixation_2 = MUTS2_fixed.subpopID - MUTS2_fixed.originTick;
+		fixeddata = paste(rep+","+mes+","+mk_a+","+mk_b+","+"1"+","+ MUTS1_fixed.originTick + ","+time_fixation_1 + "," + MUTS1_fixed.selectionCoeff + ","+ MUTS1_fixed.mutationType.id + ","+"\n");
+		writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", fixeddata, append = T);
+		fixeddata = paste(rep+","+mes+","+mk_a+","+mk_b+","+"2"+","+MUTS2_fixed.originTick + ","+time_fixation_2 + "," + MUTS2_fixed.selectionCoeff + ","+ MUTS2_fixed.mutationType.id + ","+"\n");
+		writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", fixeddata, append = T);
+	}
+	
+	// for species 1
+	//	track all new fixed mutations
+	muts1_temp = species1.mutations[which(species1.mutationFrequencies(p1) == 1.0)];
+	muts1_new = MUTS1_fixed;
+	for(m in muts1_temp){
+		tf = m.subpopID;
+		if(tf == 1){
+			m.subpopID = community.tick;
+			muts1_new = c(muts1_new, m);
+		}
+	}
+	defineGlobal("MUTS1_fixed", muts1_new);
+	
+	// for species 2	
+	//track all new fixed mutations
+	muts2_temp = species2.mutations[which(species2.mutationFrequencies(p2) == 1.0)];
+	muts2_new = MUTS2_fixed;
+	for(m in muts2_temp){
+		tf = m.subpopID;
+		if(tf == 2){
+			m.subpopID = community.tick;
+			muts2_new = c(muts2_new, m);
+		}
+	}
+	defineGlobal("MUTS2_fixed", muts2_new);
+
+}
+
+ticks all 500002 late() {
+	
+	//do the output that happens at the end of the simulation
+	time_fixation_1 = MUTS1_fixed.subpopID - MUTS1_fixed.originTick;
+	time_fixation_2 = MUTS2_fixed.subpopID - MUTS2_fixed.originTick;
+	fixeddata = paste(rep+","+mes+","+mk_a+","+mk_b+","+"1"+","+ MUTS1_fixed.originTick + ","+time_fixation_1 + "," + MUTS1_fixed.selectionCoeff + ","+ MUTS1_fixed.mutationType.id + ","+"\n");
+	writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", fixeddata, append = T);
+	fixeddata = paste(rep+","+mes+","+mk_a+","+mk_b+","+"2"+","+MUTS2_fixed.originTick + ","+time_fixation_2 + "," + MUTS2_fixed.selectionCoeff + ","+ MUTS2_fixed.mutationType.id + ","+"\n");
+	writeFile(filepath + "mutdata/10_fixed_"+rep+"_"+mes+"_"+mk_a+"_"+mk_b+".csv", fixeddata, append = T);
+
+}
+
+

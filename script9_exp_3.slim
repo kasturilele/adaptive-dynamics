@@ -1,0 +1,342 @@
+// change from 7: tradeoffs are now strict, defined by fixed tradeoff function
+// further change: mutations accumulate in both r and alpha, but now mutation effect bounded by tradeoff function
+// change from 8: separate beneficial and deleterious mutations into two different mutation types, make deleterious mutations much more likely for r and alpha
+function (integer)sgn(float x)
+{
+	if (x > 0)
+		return 1;
+	if (x < 0)
+		return -1;
+	return 0;
+}
+
+function (float)avg(float x)
+{
+	return sum(x) / length(x);
+}
+
+function (float)tradeoff(float b)
+{
+	 return -0.0000206 * exp(3.2*b); //exponential tradeoff 
+	
+}
+
+species all initialize()
+{
+	//code that reads params from file
+	params = readCSV("../params/single_params_3.csv");
+	mutkern = readCSV("../params/mutation_kernel_extra.csv"); //mutation kernel
+	defineConstant("filepath", "/cluster/tufts/uricchiolab/klele01/slimcode/outputs_tradeoffs/outputs_11_16_3/"); //file path for outputs
+	if (exists("slimgui"))
+	{
+		defineConstant("rep", 0);
+		defineConstant("mes", 0);
+		defineConstant("mk", 5);
+	}
+	
+	//toy parameters
+	defineConstant("N0_y", params.getValue("N10")[rep]); //initial pop size
+	defineConstant("r2", params.getValue("r1")[rep]); //growth rate
+	defineConstant("a22", params.getValue("a11")[rep]); //interaction coefficient
+
+	//parameters controlling supply of mutations: read from file
+	//read proportion of beneficial vs deleterious mutations
+	defineConstant("mk1", mutkern.getValue("m1")[mk]); //for m1
+	defineConstant("mk2", mutkern.getValue("m2")[mk]); //for m1
+	defineConstant("mk3", mutkern.getValue("m3")[mk]); //for m1
+	defineConstant("mk4", mutkern.getValue("m4")[mk]); //for m1
+	
+	//
+	defineConstant("mut", mutkern.getValue("mut")[mk]); //mutation rate
+	
+	//defining mutation effect multipliers here
+	defineConstant("mutr", mutkern.getValue("mutr")[mk]);
+	defineConstant("muta", mutkern.getValue("muta")[mk]);
+	
+	//define Global variable to store mean r2 and a22 values
+	defineGlobal("r2_store", r2);
+	defineGlobal("a22_store", a22);
+	defineConstant("dt", 1);
+	defineConstant("lt", 100); //log time - so that same ticks get printed on screen and in the log file
+	initializeSLiMModelType("nonWF");
+	
+
+}
+
+species species2 initialize()
+{
+	initializeSpecies(avatar="2", color="red");
+	
+	//separating beneficial and deleterious mutations
+	//for r, beneficial mutations increase r
+	//for alpha, beneficial mutations increase alpha numerically (make it less negative)
+	//deleterious mutations:
+	initializeMutationType("m1", 0.5, "g", -1, 0.5); // QTLs for r; 
+	initializeMutationType("m2", 0.5, "g", -1, 0.5); // QTLs for a; 
+	
+	//beneficial mutations:
+	initializeMutationType("m3", 0.5, "g", 1, 0.5); // QTLs for r; 
+	initializeMutationType("m4", 0.5, "g", 1, 0.5); // QTLs for a; 
+	m1.convertToSubstitution = F;
+	m1.mutationStackPolicy = 'l';
+	m1.color = "#FF4D2D";
+	m2.convertToSubstitution = F;
+	m2.mutationStackPolicy = 'l';
+	m2.color = "#B15555";
+	m3.convertToSubstitution = F;
+	m3.mutationStackPolicy = 'l';
+	m3.color = "#41FDD6";
+	m4.convertToSubstitution = F;
+	m4.mutationStackPolicy = 'l';
+	m4.color = "#01AB8E";
+	initializeGenomicElementType("g1", c(m1, m2, m3, m4), c(mk1, mk2, mk3, mk4));
+	initializeGenomicElement(g1, 0, 999);
+	initializeRecombinationRate(0.5);
+	initializeMutationRate(mut);
+}
+
+//all mutationEffects are 1 since they are QTs
+species species2 mutationEffect(m1)
+{
+	return 1.0;
+}
+
+species species2 mutationEffect(m2)
+{
+	return 1.0;
+}
+
+species species2 mutationEffect(m3)
+{
+	return 1.0;
+}
+
+species species2 mutationEffect(m4)
+{
+	return 1.0;
+}
+
+species species2 reproduction()
+{
+	litterSize2 = individual.tag;
+	if (litterSize2 > 0)
+	{
+		//changing reproduction to add selfing
+		for (i in seqLen(litterSize2))
+			subpop.addRecombinant(individual.genome1, NULL, NULL, NULL, NULL, NULL);
+	}
+}
+
+// ************************************************ 
+// ******************** EARLY ********************* 
+// ************************************************
+ticks all 1 early()
+{
+	species2.addSubpop("p2", asInteger(N0_y), haploid=T);
+	defineGlobal("MUTS", species2.mutations); // will be empty at this point
+	defineGlobal("MUTS_fixed", species2.mutations[which(species2.mutationFrequencies(p2) == 1.0)]); // will be empty at this point
+	
+	//delete old file for logging mutation data (if it exists)
+	deleteFile(filepath + "logfiles/output_" + rep + "_" + mes +"_" + mk + ".csv");
+	deleteFile(filepath + "mutdata/fixed_" + rep + "_" + mes +"_" + mk + ".csv");
+	deleteFile(filepath + "mutdata/lost_" + rep + "_" + mes +"_" + mk + ".csv");
+	
+	//create new file for logging mutation data
+	writeFile(filepath + "mutdata/lost_" + rep + "_" + mes +"_" + mk + ".csv", paste("rep" + "," + "mes" + "," + "time_loss" + "," + "effect_size" + "," + "mutation_type" + "," + "blank" + "," + "blank"));
+}
+
+// ************************************************ 
+// ******************** FIRST ********************* 
+// ************************************************
+ticks all first()
+{
+	sp2 = species2.subpopulations.individuals; // species 2 
+	
+	// non-overlapping generations: parents die, offspring live
+	sp2_age = sp2.age;
+	sp2[sp2_age > 0].fitnessScaling = 0.0;
+	
+	// get numbers of each species
+	x2 = sp2.size();
+	
+	//r1 and r2 are birth rates, decide how many offspring generated
+	//use tag to specify number of offspring
+	sp2.tag = 0;
+	
+	//mutation effects under covariance for species 2
+	r2_mean = 0;
+	a22_mean = 0;
+	r2_new = r2 + (sp2.sumOfMutationsOfType(m1) * mutr) + (sp2.sumOfMutationsOfType(m3) * mutr); //add effect of beneficial and deleterious mutations both
+	a22_temp = a22 + (sp2.sumOfMutationsOfType(m2) * muta) + (sp2.sumOfMutationsOfType(m4) * muta); //add effect of beneficial and deleterious mutations both
+	a22_cap = tradeoff(r2_new); //tradeoff decides upper bound of phenotype
+	a22_new = pmin(a22_temp, a22_cap); //mutations decreasing alpha have no effect if alpha goes below tradeoff; using pmin because of sign change
+	r2_mean = sum(r2_new) / x2;
+	a22_mean = sum(a22_new) / x2;
+	
+	//catn(r2_mean +","+ a22_mean);
+	lambda = 1 + r2_new + a22_new * x2;
+	
+	//catn(min(r2_new) + " ,"+ max(a22_new)+" ,"+ min(lambda));
+	//add offspring according to poisson variable, if lambda > 0
+	kids2 = sp2.tag; //set kids to 0
+	
+	//check for lambda > 0
+	valid2 = which(lambda > 0);
+	
+	//only evaluate rpois for indices where lambda > 0 
+	kids2[valid2] = rpois(length(lambda[valid2]), lambda[valid2]);
+	sp2.tag = kids2;
+	
+	//update global variable to store r2 and a22
+	defineGlobal("r2_store", r2_mean);
+	defineGlobal("a22_store", a22_mean);
+}
+
+// ************************************************ 
+// ******************** LATE ********************* 
+// ************************************************
+ticks all 2 late()
+{
+	//setting up a log file
+	logfile = community.createLogFile(filepath + "logfiles/output_" + rep + "_" + mes +"_" + mk + ".csv", logInterval=lt);
+	logfile.addTick();
+	logfile.addPopulationSize(species2);
+	logfile.addCustomColumn("r2", "r2_store;");
+	logfile.addCustomColumn("a22", "a22_store;");
+}
+
+ticks all late()
+{
+	//check if any species has gone extinct
+	sp2 = species2.subpopulations.individuals; // species 2 
+	
+	// get numbers of each species
+	x2 = sp2.size();
+	if (x2 < 1)
+	{
+		community.simulationFinished();
+	}
+	if (x2 > 20000)
+	{
+		//finish simulation
+		community.simulationFinished();
+	}
+	
+	// find all mutations that are no longer segregating
+	is_seg = MUTS.isSegregating;
+	muts_nonseg = MUTS[!is_seg];
+	
+	//catn(MUTS.selectionCoeff);
+	// tabulate lifetimes for those that have been lost (not fixed)
+	muts_lost = muts_nonseg[!muts_nonseg.isFixed];
+	lost_lifetimes = community.tick - muts_lost.originTick;
+	
+	//catn(community.tick + ", mutations lost: " + size(muts_lost));
+	//catn("nonsegragating: " + size(muts_nonseg)+", lost: "+ size(!muts_nonseg.isFixed));
+	//catn("lost: " + muts_lost.selectionCoeff);
+	if (size(muts_lost) > 0)
+	{
+		lostdata = paste(rep + "," + mes + "," + mk + "," + lost_lifetimes + "," + muts_lost.selectionCoeff + "," + muts_lost.mutationType.id + "," + "\n");
+		writeFile(filepath + "mutdata/lost_" + rep + "_" + mes +"_" + mk + ".csv", lostdata, append=T);
+		
+		//cat(lostdata);
+	}
+	
+	// track all newly generated mutations
+	// also, narrow down our tracking to those mutations still segregating
+	new_muts = species2.mutations;
+	new_muts = new_muts[new_muts.originTick == community.tick];
+	defineGlobal("MUTS", c(MUTS[is_seg], new_muts));
+	
+	//track all new fixed mutations 
+	defineGlobal("MUTS_fixed", species2.mutations[which(species2.mutationFrequencies(p2) == 1.0)]);
+	for (m in MUTS_fixed)
+	{
+		tf = m.subpopID;
+		if (tf == 2)
+		{
+			m.subpopID = community.tick;
+		}
+	}
+	
+	//catn(community.tick+","+MUTS_fixed.subpopID);
+}
+
+// ************************************************ 
+// *************** LATER TIMEPOINT ****************
+// ************************************************
+ticks all 2002 late()
+{
+	//output parameter values for all individuals
+	sp2 = species2.subpopulations.individuals; // species 2 
+	x2 = sp2.size();
+	
+	if (x2 > 500){
+	inds = p2.sampleIndividuals(500);
+	}
+	else {
+	inds = sp2;
+	}
+	r2_new = r2 + (inds.sumOfMutationsOfType(m1) * mutr) + (inds.sumOfMutationsOfType(m3) * mutr); //add effect of beneficial and deleterious mutations both
+	a22_temp = a22 + (inds.sumOfMutationsOfType(m2) * muta) + (inds.sumOfMutationsOfType(m4) * muta); //add effect of beneficial and deleterious mutations both
+	a22_cap = tradeoff(r2_new); //tradeoff decides upper bound of phenotype
+	a22_new = pmin(a22_temp, a22_cap); //mutations decreasing alpha have no effect if alpha goes below tradeoff; using pmin because of sign change
+	tp = community.tick;
+	output = "rep,mes,mk,IDs,r2,a22,m1,m2,m3,m4,time\n";
+	i = 0;
+	for (ind in inds){
+	id_str = "i" + asString(ind.index);
+	output = output + rep + "," + mes + "," + mk + "," + id_str+","+r2_new[i]+","+a22_new[i]+"," +ind.countOfMutationsOfType(m1)+","+ ind.countOfMutationsOfType(m2)+","+ ind.countOfMutationsOfType(m3)+","+ ind.countOfMutationsOfType(m4)+","+ tp + "\n";
+	i = i + 1;
+	}
+	writeFile(filepath + "logfiles/outpop_2000_" + rep + "_" + mes +"_" + mk + ".csv", output);
+	
+	//output properties of mutations segregating in population
+	mutstemp = species2.mutations;
+	mutsdata = "rep,mes,mk,type,origin,effect_size,frequency,time\n";
+	mutsdata = mutsdata + paste(rep + "," + mes + "," + mk + "," + mutstemp.mutationType.id + "," + mutstemp.originTick + "," + mutstemp.selectionCoeff + "," + species2.mutationFrequencies(p2) + "," + tp +"\n");
+		writeFile(filepath + "mutdata/outmut_2000_" + rep + "_" + mes + ".csv", mutsdata);
+	
+}
+
+ticks all 50002 late()
+{
+	//species2.outputFixedMutations(); //doesn't work because convertToSubstitution = F
+	catn("tracking " + size(MUTS) + " mutations at simulation end");
+	catn(MUTS_fixed.subpopID);
+	time_fixation = MUTS_fixed.subpopID - MUTS_fixed.originTick;
+	writeFile(filepath + "mutdata/fixed_" + rep + "_" + mes +"_" + mk + ".csv", paste("rep" + "," + "mes" + "," + "mk" + "," + "time_origin" + "," + "time_fixed" + "," + "effect_size" + "," + "mutation_type" + "," + "blank" + "," + "blank"));
+	fixeddata = paste(rep + "," + mes + "," + mk + "," + MUTS_fixed.originTick + "," + time_fixation + "," + MUTS_fixed.selectionCoeff + "," + MUTS_fixed.mutationType.id + "," + "\n");
+	writeFile(filepath + "mutdata/fixed_" + rep + "_" + mes +"_" + mk + ".csv", fixeddata, append=T);
+	
+	//output parameter values for all individuals
+	sp2 = species2.subpopulations.individuals; // species 2 
+	x2 = sp2.size();
+	
+	if (x2 > 500){
+	inds = p2.sampleIndividuals(500);
+	}
+	else {
+	inds = sp2;
+	}
+	r2_new = r2 + (inds.sumOfMutationsOfType(m1) * mutr) + (inds.sumOfMutationsOfType(m3) * mutr); //add effect of beneficial and deleterious mutations both
+	a22_temp = a22 + (inds.sumOfMutationsOfType(m2) * muta) + (inds.sumOfMutationsOfType(m4) * muta); //add effect of beneficial and deleterious mutations both
+	a22_cap = tradeoff(r2_new); //tradeoff decides upper bound of phenotype
+	a22_new = pmin(a22_temp, a22_cap); //mutations decreasing alpha have no effect if alpha goes below tradeoff; using pmin because of sign change
+	tp = community.tick;
+	output = "IDs,r2,a22,time\n";
+	i = 0;
+	for (ind in inds){
+	id_str = "i" + asString(ind.index);
+	output = output + id_str+","+r2_new[i]+","+a22_new[i]+","+tp + "\n";
+	i = i + 1;
+	}
+	
+	writeFile(filepath + "logfiles/outpop_50000_" + rep + "_" + mes +"_" + mk + ".csv", output);
+	
+	//output properties of mutations segregating in population
+	mutstemp = species2.mutations;
+	mutsdata = "rep,mes,mk,type,origin,effect_size,frequency,time\n";
+	mutsdata = mutsdata + paste(rep + "," + mes + "," + mk + "," + mutstemp.mutationType.id + "," + mutstemp.originTick + "," + mutstemp.selectionCoeff + "," + species2.mutationFrequencies(p2) + "," + tp +"\n");
+		writeFile(filepath + "mutdata/outmut_50000_" + rep + "_" + mes + ".csv", mutsdata);
+}
