@@ -128,8 +128,6 @@ ggsave("/Users/kasturilele/Documents/SLiM/plotdump/for_figures/fig2d.pdf", width
 
 #read file
 
-ESSpred <- as.data.frame(read.csv("~/Documents/SLiM/tradeoff_fun_ESS.csv", header = T))
-
 ESSpred_S1 <- as.data.frame(read.csv("~/Documents/SLiM/tradeoff_fun_ESS1.csv", header = T))
 ESSpred_S2 <- as.data.frame(read.csv("~/Documents/SLiM/tradeoff_fun_ESS2.csv", header = T))
 
@@ -247,7 +245,7 @@ for (mk in mks_list) {
   }
   #}
 }
-
+write.table(time_threshold, file = "~/Documents/SLiM/Rstuff/time_threshold_fig3.csv", append = F, sep = ",")
 tt_combine <- merge(time_threshold, mks_full, by = "mutation_kernel")
 #tt_combine_large <- merge(tt_combine, reps, by.x = "rep", by.y = "IDs")
 tt_combine_large <- tt_combine
