@@ -6,9 +6,9 @@ Simulation data:
 Scripts used: 
 
 Part A: Python and Mathematica scripts used for calculations and numerical solutions-
-eqn_solver.py - this script contains the code for trial tradeoff functions and pairwise invasibility plots, numerical solutions to selection gradients (derivative of invasion fitness), and predictions of coexistence over a range of constants for tradeoff functions. These results are discussed in Results section 1.
-AD_single.nb - this script contains Mathematica code to double-check the calculations from Appendix Section 3 (single-species adaptive dynamics predictions)
-AD_paired.nb - this script contains Mathematica code to double-check the calculations from Appendix Section 4 (two-species adaptive dynamics predictions)
+- eqn_solver.py - this script contains the code for trial tradeoff functions and pairwise invasibility plots, numerical solutions to selection gradients (derivative of invasion fitness), and predictions of coexistence over a range of constants for tradeoff functions. These results are discussed in Results section 1.
+- AD_single.nb - this script contains Mathematica code to double-check the calculations from Appendix Section 3 (single-species adaptive dynamics predictions)
+- AD_paired.nb - this script contains Mathematica code to double-check the calculations from Appendix Section 4 (two-species adaptive dynamics predictions)
 
 Part B: SLiM scripts + bash scripts used for simulations
 
