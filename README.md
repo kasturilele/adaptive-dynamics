@@ -9,4 +9,4 @@ AD_paired.nb - this script contains Mathematica code to double-check the calcula
 Part B: SLiM scripts + bash scripts used for simulations
 
 Part C: R scripts used for analysis- 
-The script AD_all_analysis.R contains all the R scripts used for statistical analysis and making figures. Some of the file locations need to be changed for the script to work correctly.
+The script AD_all_analysis.R contains all the R scripts used for statistical analysis and making figures. Some of the file locations need to be changed for the script to work correctly. 
