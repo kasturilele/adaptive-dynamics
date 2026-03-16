@@ -22,6 +22,7 @@ The script AD_all_analysis.R contains all the R scripts used for statistical ana
 
 
 Simulation data (only including data files for main figures):
+For these files, some of the log files from the simulations were too large to include, so we have provided the processed data from those files (used to generate the figures).
 
  - tradeoff_fun_ESS1.csv and tradeoff_fun_ESS2.csv - files containing predictions of coexistence for different tradeoff function constants generated from the script eqn.solver.py
  - mutation_kernel_extra.csv - file containing all the mutation supply parameters (for most simulations)
@@ -32,10 +33,14 @@ Simulation data (only including data files for main figures):
  - paired_params_2.csv - file containing initial values for growth parameters (ri, aii) for two species simulations
  - pairparams_new.csv - file containing initial values for growth parameters (ri, aii) for extended two species simulations (figure 5)
  - log_combined_single3.csv - simulation outputs for single-species simulations (population size and mean values of ri and aii)
+ - time_threshold_fig3.csv - processed data from previous file (used to generate Figure 3)
  - fixed_combined_single3.csv - information about fixed mutations for simulations in previous file
  - log_combined_pair2new.csv - simulation outputs for first set of two-species simulations (population size and mean values of ri and aii)
  - log_combined_extinct.csv - simulation outputs for some parameter combinations not covered in this previous file
  - time_extinct_fig4.csv - processed data from previous two files (used to generate Figure 4)
  - fixed_combined_pair2new.csv - information about fixed mutations for simulations in previous file
- - log_comb_exp_15_ext2.csv and log_comb_exp_16_ext2.csv - simulation outputs for extended two-species simulations (for figure 6, population size and mean values of ri and aii)
  - log_comb_init_00.csv - simulation outputs for extended two-species simulations (for figure 5, population size and mean values of ri and aii)
+ - time_extinct_fig6_00_50000.csv - processed data from previous file (used to generate Figure 5)
+ - log_comb_exp_15_ext2.csv and log_comb_exp_16_ext2.csv - simulation outputs for extended two-species simulations (for figure 6, population size and mean values of ri and aii)
+ - time_extinct_15.csv and time_extinct_16.csv - processed data from previous files (used to generate Figure 6)
+
