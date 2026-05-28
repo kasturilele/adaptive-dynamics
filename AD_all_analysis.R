@@ -448,16 +448,16 @@ tt_ext_large$mut <- as.factor(tt_ext_large$mut)
 
 #tt_ext_large1 <- subset(tt_ext_large, mutr > 0.002)
 
-p_tt2 <- ggplot(data = tt_ext_large, aes(x = mut, y = tick_extinct, colour = mut, fill = mut)) +
+p_tt2 <- ggplot(data = tt_ext_large, aes(x = mut, y = tick_extinct, colour = tick_extinct, fill = tick_extinct)) +
   theme_bw()+
   #geom_boxplot(alpha = 0.6)+
   geom_jitter(width = 0.2, height = 0, alpha = 0.6)+
-  scale_colour_viridis_d(begin = 0, end = 0.8, direction = -1) +
-  scale_fill_viridis_d(begin = 0, end = 0.8, direction = -1) +
-  facet_grid(-mutr~m3)+
+  scale_colour_viridis_c(begin = 1, end = 0) +
+  scale_fill_viridis_c(begin = 1, end = 0) +
+  facet_grid(-mutr~m3)
   theme(legend.position = "none")
 p_tt2
-#ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_dec25/fig4a_horz.pdf", width=7.5, height=5, units = "in")
+ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_mar26/fig4a_horz_new.pdf", width=7.75, height=5, units = "in")
 
 #side analysis for fig 6 (fig 5 in paper): calculate fraction of pops that went extinct
 frac_extinct <- data_frame(mutation_kernel=integer(),
@@ -471,7 +471,19 @@ for(mk in mks_list){
   frac_extinct[counter,2] <- num_extinct
   counter <- counter+1
 }
-#mutation kernel 74 has the most extinct (55%), use this for simulations in fig.6
+frac_extinct_large <- merge(frac_extinct, mks, by = "mutation_kernel")
+frac_extinct_large$mut <- as.factor(frac_extinct_large$mut)
+frac_extinct_large$mutr <- as.factor(frac_extinct_large$mutr)
+frac_extinct_large$m3 <- as.factor(frac_extinct_large$m3)
+p_tt3 <- ggplot(data = frac_extinct_large, aes(x = m3, y = mutr, fill = extinct)) +
+  theme_bw()+
+  #geom_boxplot(alpha = 0.6)+
+  geom_tile()+
+  scale_fill_viridis_c(begin = 0, end = 1, direction = -1) +
+  facet_wrap(~mut, nrow=1)+
+  theme(legend.position = "none")
+p_tt3
+ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_mar26/fig4a_alt.pdf", width=7.5, height=2.5, units = "in")
 
 library(cowplot)
 
@@ -694,7 +706,7 @@ b <- 20 #binsize
 
 time_ext_binned <- time_ext %>% mutate(mk1_bin = ntile(mut_sp1, n=b), mk2_bin = ntile(mut_sp2, n=b))
 
-#write.table(time_ext_binned, file = "~/Documents/SLiM/Rstuff/time_extinct_16.csv", append = F, sep = ",")
+#write.table(time_ext_binned, file = "~/Documents/SLiM/Rstuff/time_extinct_16_long.csv", append = F, sep = ",")
 #read previously saved file rather than having to do all the analysis again
 time_ext_binned <- as.data.frame(read.csv("~/Documents/SLiM/Rstuff/time_extinct_16.csv", header = T))
 
@@ -738,7 +750,7 @@ p_h1 <- ggplot(data = prop_ext, aes(x = mutation_kernel_1, y = mutation_kernel_2
   #xlim(10,20)+
   #ylim(10,20)+
   #scale_fill_viridis_c(option = "viridis", direction = -1, begin = 0.4856479, end = 1) #begin = 0.4856479 for mk15
-  scale_fill_viridis_c(option = "viridis", direction = -1)
+  scale_fill_viridis_c(option = "viridis", direction = -1, limits=c(0,1))
 p_h1
 
 p_h1me <- ggplot(data = prop_ext, aes(x = mutation_kernel_1, y = mutation_kernel_2, fill = frac_end)) +
@@ -750,14 +762,14 @@ p_h1me <- ggplot(data = prop_ext, aes(x = mutation_kernel_1, y = mutation_kernel
   scale_fill_viridis_c(option = "viridis", direction = -1)
 p_h1me
 
-#ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_dec25/fig5a_exts15.pdf", width=4.5, height=3.75, units = "in")
+ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_may26/fig5a_exts16.pdf", width=4.5, height=3.75, units = "in")
 
 #analysing if time to ext/ESS is mutation kernel dependant (see below for this same data for mk 16)
 
-uniques <- unique(time_data_15[,c(1,2)], fromLast = T)
+uniques <- unique(time_data_16[,c(1,2)], fromLast = T)
 rns <- as.numeric(rownames(uniques))
 rns <- rns - 9 #since simulation ends 1000 generations after conditions met
-time_data_end_temp <- time_data_15[rns,]
+time_data_end_temp <- time_data_16[rns,]
 
 time_data_end <- merge(time_data_end_temp, time_ext_binned[,c(1,2,12,13)], by = c('rep', 'mes'))
 
@@ -820,13 +832,116 @@ temp_all <- unique(time_data_16[,c(1,2)])
 temp_cox2 <- anti_join(temp_all, temp_ext)
 print(nrow(temp_cox2))
 temp_cox <- anti_join(temp_cox2, temp_rem)
+#temp_cox <- temp_cox2 (using this for temp. analysis)
 tick_extinct <- rep(500002, nrow(temp_cox))
 temp3 <- cbind(temp_cox, tick_extinct)
 
 time_ext_temp <- rbind(temp2, temp3)
 time_ext <-  merge(time_ext_temp, mk16, by = c('rep', 'mes'))
 
-#continue with previous code from here
+#figure 6 redo with new simulation data (lower prop of ben. muts)
+time_data_16_new <- as.data.frame(read.csv("~/Documents/SLiM/outputs/logfiles/log_comb_16_init_new.csv", header = T))
+mk16_new <- as.data.frame(read.csv("~/Documents/SLiM/final_params/mutkern_16_init_new.csv", header = T))
+
+#calculating extinction for all the data
+tmax_new <- max(time_data_16_new$tick)
+
+#check for which ones did not end simulation
+length(which(time_data_16_new$tick == tmax_new))
+temp_not_ext_new <- time_data_16_new[which(time_data_16_new$tick == tmax_new),]
+
+#remove the ones that did not reach end of simulation from our analysis?
+temp_rem_new <- unique(temp_not_ext_new[,c(1,2)])
+
+exts_new <- which(time_data_16_new$num_individuals_species1 < 1 | time_data_16_new$num_individuals_species2 < 1)
+time_data_sub_new <- time_data_16_new[exts_new,]
+temp_ext_new <- unique(time_data_sub_new[,c(1,2)])
+print(nrow(temp_ext_new))
+temp2_new <- cbind(temp_ext_new, time_data_sub_new[rownames(temp_ext_new),]$tick)
+colnames(temp2_new) <- c("rep","mes","tick_extinct")
+
+temp_all_new <- unique(time_data_16_new[,c(1,2)])
+temp_cox2_new <- anti_join(temp_all_new, temp_ext_new)
+print(nrow(temp_cox2_new))
+temp_cox_new <- anti_join(temp_cox2_new, temp_rem_new)
+#temp_cox <- temp_cox2 (using this for temp. analysis)
+tick_extinct <- rep(tmax_new, nrow(temp_cox_new))
+temp3_new <- cbind(temp_cox_new, tick_extinct)
+
+time_ext_temp_new <- rbind(temp2_new, temp3_new)
+time_ext_new <-  merge(time_ext_temp_new, mk16_new, by = c('rep', 'mes'))
+
+#old binned data subset 
+time_ext_binned_old <- subset(time_ext_binned, mut_sp1 > 2.95e-07)[,2:12]
+time_ext_binned_old[(which(time_ext_binned_old$tick_extinct > 500000)),]$tick_extinct <- rep(tmax_new, length((which(time_ext_binned_old$tick_extinct > 500000)))) #update the extinction tick
+time_ext <- rbind(time_ext_binned_old,time_ext_new)
+b <- 20
+time_ext_binned_new <- time_ext %>% mutate(mk1_bin = ntile(mut_sp1, n=b), mk2_bin = ntile(mut_sp2, n=b))
+write.table(time_ext_binned_new, file = "~/Documents/SLiM/Rstuff/time_extinct_16_new.csv", append = F, sep = ",")
+#proportion of populations extinct
+prop_ext <- data_frame(mutation_kernel_1=numeric(),
+                       mutation_kernel_2=numeric(),
+                       total = integer(),
+                       extinct=integer(),
+                       end=integer()) #only for mutation effect
+
+mk_1 <- 1
+mk_2 <- 1
+counter <- 1
+
+for (mk_1 in 1:b) {
+  for (mk_2 in 1:b){
+    ext_sub <-  subset(time_ext_binned_new, mk1_bin == mk_1 & mk2_bin == mk_2)
+    nt <- nrow(ext_sub)
+    if(nt > 0){
+      n_ext <- length(which(ext_sub$tick_extinct < 1000000))
+      n_false <- length(which(ext_sub$end == TRUE)) # only for mutation effect 
+      prop_ext[counter,1] <- mk_1
+      prop_ext[counter,2] <- mk_2
+      prop_ext[counter,3] <- nt
+      prop_ext[counter,4] <- n_ext
+      prop_ext[counter,5] <- n_false
+      counter <- counter + 1
+    }
+  }
+}
+
+frac_extinct <- prop_ext$extinct/prop_ext$total
+frac_end <- prop_ext$end/prop_ext$total
+prop_ext <- cbind(prop_ext, frac_extinct, frac_end)
+
+p_h1 <- ggplot(data = prop_ext, aes(x = mutation_kernel_1, y = mutation_kernel_2, fill = frac_extinct)) +
+  theme_bw()+
+  geom_tile() +
+  #xlim(10,20)+
+  #ylim(10,20)+
+  #scale_fill_viridis_c(option = "viridis", direction = -1, begin = 0.4856479, end = 1) #begin = 0.4856479 for mk15
+  scale_fill_viridis_c(option = "viridis", direction = -1, limits=c(0,1))
+p_h1
+
+bins <- data_frame(species=integer(),
+                   bin=integer(),
+                   min=numeric(),
+                   max=numeric()) #only for mutation effect
+counter <- 1
+
+
+mk <- 1
+for (mk in 1:b) {
+    ext_sub <-  subset(time_ext_binned_new, mk2_bin == mk)
+    nt <- nrow(ext_sub)
+    if(nt > 0){
+      bins[counter,1] <- 2
+      bins[counter,2] <- mk
+      bins[counter,3] <- min(ext_sub$mut_sp2)
+      bins[counter,4] <- max(ext_sub$mut_sp2)
+      counter <- counter + 1
+    }
+}
+
+#repeat for both species without resetting counter
+
+#old code (mutation effect size)
 
 uniques <- unique(time_data_16[,c(1,2)], fromLast = T)
 rns <- as.numeric(rownames(uniques))
@@ -960,6 +1075,8 @@ p_hfull <- ggplot(data = prop_ext, aes(x = as.factor(mutation_kernel_1), y = as.
   scale_fill_viridis_c(option = "viridis", direction = -1)
 p_hfull
 ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_dec25/fig5_sup_all.pdf", width=8.75, height=8.00, units = "in")
+
+
 
 #------- figure 5 in paper -------
 temp_pred_coexist <- read.table(file = "/Users/kasturilele/Documents/SLiM/final_params/pairparams_new.csv", sep = ",", header = TRUE)
@@ -1113,6 +1230,7 @@ pctemp <- ggplot(data = coexist_00s) +
   annotate("point",x = rho_2sp, y = f2f1_2sp, colour = "#111111", size = 2.5) +
   scale_colour_viridis_c()+
   scale_shape_manual(values = c("TRUE" = 16, "FALSE" = 1)) +
+  xlim(0,1)+
   scale_y_log10() +
   stat_function(fun = fun_inverse, inherit.aes = F) +
   stat_function(fun = fun_default, inherit.aes = F) +
@@ -1120,6 +1238,7 @@ pctemp <- ggplot(data = coexist_00s) +
         axis.title = element_blank()) #removing the facet labels - they are not necessary
 pctemp
 ggsave("/Users/kasturilele/Documents/SLiM/plotdump/sims_jan26/fig6a_1sup_new.pdf", width=7.50, height=5.00, units = "in")
+#ggsave("/Users/kasturilele/Documents/thesis_docs/presentation/pred_ESS.pdf", width=5.00, height=5.00, units = "in")
 
 pctemp2 <- ggplot(data = coexist_00s) +
   theme_bw() +
