@@ -19,6 +19,7 @@ Part B: SLiM scripts + bash scripts used for simulations-
 
 Part C: R scripts used for analysis- 
 The script AD_all_analysis.R contains all the R scripts used for statistical analysis and making figures. Some of the file locations need to be changed for the script to work correctly. 
+Additional R scripts (with extra analysis, that may or may not be included in the final version of the paper): AD_supp_analyis.R, extra_analysis_for_presentation.R, trajectory_mapping.R
 
 
 Simulation data (only including data files for main figures):
